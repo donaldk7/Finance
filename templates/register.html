@@ -1,0 +1,36 @@
+{% extends "layout.html" %}
+
+{% block title %}
+    Register
+{% endblock %}
+
+{% block main %}
+    <h2>Register Account</h2>
+    <form action="{{ url_for('register') }}" method="post">
+        <fieldset>
+            <div class="form-group">
+                <input autocomplete="off" autofocus class="form-control" name="username" placeholder="Username" type="text"/>
+            </div>
+            <div class="form-group">
+                <input class="form-control" name="password" placeholder="Password" type="password"/>
+            </div>
+            <div class="form-group">
+                <input class="form-control" name="retyped" placeholder="Confirm Password" type="password"/>
+            </div>
+            <div class="form-group">
+                <button class="btn btn-default" type="submit">Register</button>
+            </div>
+        </fieldset>
+    </form>
+{% endblock %}
+
+
+
+<!-- notes to self -->
+<!-- form-group is part of bootstrap.  Wrap labels and form controls in this(needed for optimum spacing) -->
+<!-- autocompete will complete form inputs based on past history -->
+<!-- autofocus selects an input element automatically -->
+<!-- form-control is bootstrap class, add to all textual <input>, <textarea>, and <select> elements-->
+<!-- The <fieldset> tag is used to group related elements in a form, and draws a box around them -->
+<!--  -->
+

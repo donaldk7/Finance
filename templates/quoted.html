@@ -1,0 +1,14 @@
+{% extends "layout.html" %}
+
+{% block title %}
+    Quoted
+{% endblock %}
+
+{% block main %}
+    <h2>Stock Detail</h2>
+    <ul id="quote_disp">
+        <li style="color: blue;">Name: {{ name }}</li>
+        <li style="color: red;">Symbol: {{ symbol }}</li>
+        <li style="color: green;">Price: {{ price }}</li>
+    </ul>
+{% endblock %}

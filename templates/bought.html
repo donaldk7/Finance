@@ -1,0 +1,19 @@
+{% extends "layout.html" %}
+
+{% block title %}
+    Bought
+{% endblock %}
+
+{% block main %}
+    <h2>Buy Detail</h2>
+    <p>You have successfully purchased the following shares</p>
+    <ul id="quote_disp">
+        <li style="color: blue;">Name: {{ name }}</li>
+        <li style="color: red;">Symbol: {{ symbol }}</li>
+        <li style="color: green;">Price per share: {{ price }}</li>
+        <li style="color: orange;">Number of shares: {{ shares }}</li>
+        <li style="color: purple;">Total price: {{ total }}</li>
+        <li>Transaction: {{ buy_sell }}</li>
+        <li>Date and Time: {{ time }}</li>
+    </ul>
+{% endblock %}

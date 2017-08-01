@@ -1,0 +1,45 @@
+{% extends "layout.html" %}
+
+{% block title %}
+    Index
+{% endblock %}
+
+{% block main %}
+    <h2>{{ user }}'s Portfolio</h2>
+    
+    <table class="table table-bordered table-striped table-responsive joined">
+        <tr>
+            <th>Stocks Owned</th>
+            <th>Number of Shares</th>
+            <th>Current Price</th>
+            <th>Total Value of Stock</th>
+        </tr>
+        
+        {% for stock in stocks %}
+            <tr>
+                <td>{{ stock.stock }}</td>
+                <td>{{ stock.shares }}</td>
+                <td>{{ stock.price }}</td>
+                <td>{{ stock.sub_total }}</td>
+            </tr>
+        {% endfor %}
+    </table>
+
+    </br>
+    
+    <table class="table table-bordered table-responsive" id="equity">
+        <tr>
+            <td>Current Cash: </td>
+            <td>{{ cash }}</td>
+        </tr>
+        <tr>
+            <td>Value of All Stocks: </td>
+            <td>{{ total }}</td>
+        </tr>
+        <tr>
+            <td>Total Equity: </td>
+            <td>{{ equity }}</td>
+        </tr>
+    </table>
+
+{% endblock %}

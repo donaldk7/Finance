@@ -1,0 +1,19 @@
+<!-- Using Jinja template -->
+{% extends "layout.html" %}
+
+{% block title %}
+    Quote
+{% endblock %}
+
+{% block main %}
+    <h2>Quote</h2>
+    <form action="{{ url_for('quote') }}" method="post">
+        <fieldset>
+            <div class="form-group">
+                <label>Stock Symbol: </label>
+                <input autocompete="on" placeholder="NFLX" type="text" name="symbol"/>
+                <input type="submit" value="Submit"/>
+            </div>
+        </fieldset>
+    </form>
+{% endblock %}
