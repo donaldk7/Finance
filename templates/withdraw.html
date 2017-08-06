@@ -1,18 +1,18 @@
 {% extends "layout.html" %}
 
 {% block title %}
-    Add Cash
+    Withdraw
 {% endblock %}
 
 {% block main %}
-    <h2>Add Funds</h2>
+    <h2>Withdraw Funds</h2>
     <p>Your current account balance is: {{ balance }}</p>
     </br>
-    <form action="{{ url_for('account') }}" method="post">
+    <form action="{{ url_for('withdraw') }}" method="post">
         <fieldset>
             <div class="form-group">
-                <label>Add money to your account: $ </label>
-                <input autocompete="on" placeholder="1000" type="number" name="cash"/>
+                <label>Withdraw funds: $ </label>
+                <input autocompete="on" placeholder="1000" type="number" name="withdraw"/>
             </div>
             <div class="form-group">
                 <input type="submit" value="Submit"/>

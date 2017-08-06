@@ -6,7 +6,7 @@
     text-align: center;
 }
 
-/* colors for navbar */
+/* colors for navbar brand (top-left)*/
 .navbar-default .navbar-brand .blue
 {
     color: #537fbe;
@@ -22,6 +22,10 @@
 .navbar-default .navbar-brand .green
 {
     color: #2e944b;
+}
+.navbar-default .navbar-brand
+{
+    font-size: 20px;
 }
 
 main .form-control
@@ -60,4 +64,20 @@ main p
 #equity
 {
     width: 300px;
+}
+
+button
+{
+    width: 160px;
+    height: 50px;
+}
+
+#deposit
+{
+    background-color: lightblue;
+}
+
+#withdraw
+{
+    background-color: lightcoral;
 }

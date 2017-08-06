@@ -1,5 +1,6 @@
 import csv
 import urllib.request
+import time
 
 from flask import redirect, render_template, request, session, url_for
 from functools import wraps
@@ -68,3 +69,7 @@ def lookup(symbol):
 def usd(value):
     """Formats value as USD."""
     return "${:,.2f}".format(value)
+
+def currentTime():
+    return time.asctime( time.localtime(time.time()) )
+    # thanks to https://www.tutorialspoint.com/python3/python_date_time.htm   for the time code snippet

@@ -1,0 +1,30 @@
+{% extends "layout.html" %}
+
+{% block title %}
+    Account
+{% endblock %}
+
+{% block main %}
+    <h2>Account management</h2>
+    <p>Username: {{ user }}</p>
+    <p>Current cash balance: {{ balance }}</p>
+    </br>
+    <p>What would you like to do?</p>
+    </br>
+    <div>
+        <a href="{{ url_for('deposit') }}"><button id="deposit" type="button" class="btn btn-md">Deposit</button></a>
+    </div>
+    </br>
+    <div>
+        <a href="{{ url_for('withdraw') }}"><button id="withdraw" type="button" class="btn btn-md">Withdraw</button></a>
+    </div>
+    </br>
+    <div>
+        <a href="{{ url_for('userChange') }}"><button id="userChange" type="button" class="btn btn-md">Change Username</button></a>
+    </div>
+    </br>
+    <div>
+        <a href="{{ url_for('passChange') }}"><button id="passChange" type="button" class="btn btn-md">Change Password</button></a>
+    </div>
+    
+{% endblock %}

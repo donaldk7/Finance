@@ -1,4 +1,3 @@
-from cs50 import SQL
 from flask import Flask, flash, redirect, render_template, request, session, url_for
 from flask_session import Session
 from passlib.apps import custom_app_context as pwd_context
@@ -6,6 +5,7 @@ from tempfile import mkdtemp
 
 from helpers import *
 import time
+import sqlite3
 
 # configure application
 app = Flask(__name__)
@@ -28,15 +28,19 @@ app.config["SESSION_PERMANENT"] = False
 app.config["SESSION_TYPE"] = "filesystem"
 Session(app)
 
-# configure CS50 Library to use SQLite database
-db = SQL("sqlite:///finance.db")
+# configure SQLite database
+conn = sqlite3.connect('finance.db')
+conn.row_factory = sqlite3.Row
+c = conn.cursor()
 
 @app.route("/")
 @login_required
 def index():
     
     #query user's portfolio
-    rowsPF = db.execute("SELECT * FROM portfolio WHERE id = :id", id = session["user_id"])
+    # https://docs.python.org/3/library/sqlite3.html
+    c.execute('SELECT * FROM portfolio WHERE id = ?', (session["user_id"],))
+    rowsPF = c.fetchall()
     
     #lookup each stock's info
     total = 0
@@ -55,41 +59,87 @@ def index():
         total += sub_total
     
     #retrieve user's cash balance    
-    rowsUser = db.execute("SELECT * FROM users WHERE id = :id", id = session["user_id"])
+    c.execute('SELECT * FROM users WHERE id = ?', (session["user_id"],))
+    user = c.fetchone()
     
-    equity = rowsUser[0]["cash"] + total
+    equity = user["cash"] + total
+    
+    return render_template("index.html", user=user["username"], stocks=stocks, total=usd(total), cash=usd(user["cash"]), equity=usd(equity))
 
-    return render_template("index.html", user=rowsUser[0]["username"], stocks=stocks, total=usd(total), cash=usd(rowsUser[0]["cash"]), equity=usd(equity))
-
-@app.route("/acount", methods=["GET", "POST"])
+@app.route("/account")
 @login_required
 def account():
-    """Add cash to balance."""
+    """Display account management options."""
+    
+    c.execute('SELECT * FROM users WHERE id = ?', (session["user_id"],))
+    user = c.fetchone()
+    return render_template("account.html", user=user['username'], balance=usd(user['cash']))
+
+@app.route("/deposit", methods=["GET", "POST"])
+@login_required
+def deposit():
+    """Add funds to cash balance."""
+    
+    id = session["user_id"]
+
+    #query the user's data
+    c.execute("SELECT * FROM users WHERE id = ?", (id,))
+    user = c.fetchone()
     
     #if POST method
     if request.method == "POST":
         
-        #query the user's data
-        id = session["user_id"]
-        rowsUser = db.execute("SELECT * FROM users where id=:id", id = id)
-        
-        #update the user's cash balance
-        cash = int(request.form.get("cash"))
-        db.execute("UPDATE users SET cash=:cash WHERE id=:id", cash = rowsUser[0]["cash"] + cash, id=id)
-        
-        # thanks to https://www.tutorialspoint.com/python3/python_date_time.htm   for the time code snippet
-        localtime = time.asctime( time.localtime(time.time()) )
-        
-        #update transaction history table        
-        db.execute("INSERT INTO transactions (id, buy_sell, price, time) VALUES(:id, :buy_sell, :price, :time)",
-            id = id, buy_sell = "Cash", price = cash, time = localtime)
+        #make a helper function to check for number is entered because a user can turn javascript off on the browser
+        #so need to double check for correct input on the server side
 
+        #update the user's cash balance
+        deposit =  int(request.form.get("deposit"))
+        c.execute('UPDATE users SET cash = ? WHERE id = ?', (user["cash"] + deposit, id))
+
+        #update transaction history table        
+        c.execute("INSERT INTO transactions (id, buy_sell, price, time) VALUES(?,?,?,?)", (id, 'Deposit', deposit, currentTime()))
+        
+        #commit any changes to db
+        conn.commit()
+            
         return redirect(url_for("index"))
             
     # if GET method
     else:
-        rowsUser = db.execute("SELECT * FROM users where id=:id", id = session["user_id"])
-        return render_template("add_cash.html", balance=usd(rowsUser[0]["cash"]))
+        return render_template("deposit.html", balance=usd(user["cash"]))
+
+@app.route("/withdraw", methods=["GET", "POST"])
+@login_required
+def withdraw():
+    """Withdraw funds."""
+    
+    id = session["user_id"]
+
+    #query the user's data
+    c.execute("SELECT * FROM users WHERE id = ?", (id,))
+    user = c.fetchone()
+    
+    #if POST method
+    if request.method == "POST":
+        
+        #make a helper function to check for number is entered because a user can turn javascript off on the browser
+        #so need to double check for correct input on the server side
+
+        #update the user's cash balance
+        withdraw =  int(request.form.get("withdraw"))
+        c.execute('UPDATE users SET cash = ? WHERE id = ?', (user["cash"] - withdraw, id))
+
+        #update transaction history table        
+        c.execute("INSERT INTO transactions (id, buy_sell, price, time) VALUES(?,?,?,?)", (id, 'Withdraw', -withdraw, currentTime()))
+        
+        #commit any changes to db
+        conn.commit()
+            
+        return redirect(url_for("index"))
+            
+    # if GET method
+    else:
+        return render_template("withdraw.html", balance=usd(user["cash"]))
 
 @app.route("/buy", methods=["GET", "POST"])
 @login_required
@@ -109,36 +159,39 @@ def buy():
 
         #check if the user has sufficient funds
         id = session["user_id"]
-        rowsUser = db.execute("SELECT * FROM users WHERE id = :id", id = id )
+        c.execute("SELECT * FROM users WHERE id = ?", (id,))
+        user = c.fetchone()
         
-        cash = rowsUser[0]["cash"]
+        cash = user["cash"]
         if cash < purchase:
             return apology("insufficient funds for transaction")
             
-        localtime = time.asctime( time.localtime(time.time()) )
-        
         #update transaction history table        
-        db.execute("INSERT INTO transactions (id, stock, buy_sell, shares, price, time) VALUES(:id, :stock, :buy_sell, :shares, :price, :time)",
-            id = id, stock = stock["symbol"], buy_sell = "Buy", shares = shares, price = stock["price"], time = localtime)
+        c.execute("INSERT INTO transactions VALUES(?,?,?,?,?,?)", (id, stock["symbol"], "Buy", shares, stock["price"], currentTime()))
         
         # if user already owns this stock, update the record
-        rowsPF = db.execute("SELECT * FROM portfolio WHERE id = :id AND stock = :symbol", id = id, symbol = stock["symbol"])
-        #rows = db.execute("SELECT * FROM users WHERE username = :username", username=request.form.get("username"))
-        if len(rowsPF) > 0:
-            db.execute("UPDATE portfolio SET shares = :shares WHERE id = :id AND stock = :stock", 
-                shares = rowsPF[0]["shares"] + shares, id = id, stock = stock["symbol"])
+        c.execute("SELECT * FROM portfolio WHERE id = ? AND stock = ?", (id, stock["symbol"], ) )
+        owned = c.fetchone()
+        
+        if owned:
+            #db.execute("UPDATE portfolio SET shares = :shares WHERE id = :id AND stock = :stock", 
+            #    shares = rowsPF[0]["shares"] + shares, id = id, stock = stock["symbol"])
+            c.execute('UPDATE portfolio SET SHARES = ? WHERE id = ? AND stock = ?', (owned["shares"] + shares, id, stock["symbol"]))
         
         # otherwise insert new stock to portfolio table
         else:
-            db.execute("INSERT INTO portfolio (id, stock, shares) VALUES(:id, :stock, :shares)",
-                id = id, stock = stock["symbol"], shares = shares)
+            #db.execute("INSERT INTO portfolio (id, stock, shares) VALUES(:id, :stock, :shares)",
+            #    id = id, stock = stock["symbol"], shares = shares)
+            c.execute("INSERT INTO portfolio VALUES(?,?,?)", (id, stock["symbol"], shares))
                 
         #update the cash position
-        db.execute("UPDATE users SET cash = :cash WHERE id = :id", cash = cash - purchase, id = id)
+        c.execute('UPDATE users SET cash = ? WHERE id = ?', (cash - purchase, id))
+        
+        conn.commit()
         
         # render the successful result
         return render_template("bought.html", name=stock["name"], symbol=stock["symbol"], price=stock["price"],
-            shares=shares, total=usd(stock["price"]*shares), buy_sell="Buy", time = localtime)
+            shares=shares, total=usd(stock["price"]*shares), buy_sell="Buy", time = currentTime())
         
     # if GET method    
     else: 
@@ -151,8 +204,8 @@ def history():
     """Show history of transactions."""
     
     #query user's transactions table
-    rowsT = db.execute("SELECT * FROM transactions WHERE id = :id", id = session["user_id"])
-    
+    c.execute("SELECT * FROM transactions WHERE id = ?", (session["user_id"],))
+    rowsT = c.fetchall()
     return render_template("history.html", stocks=rowsT)
 
 
@@ -175,14 +228,15 @@ def login():
             return apology("must provide password")
 
         # query database for username
-        rows = db.execute("SELECT * FROM users WHERE username = :username", username=request.form.get("username"))
+        c.execute("SELECT * FROM users WHERE username = ?", (request.form.get("username"),))
+        user = c.fetchone()
 
         # ensure username exists and password is correct
-        if len(rows) != 1 or not pwd_context.verify(request.form.get("password"), rows[0]["hash"]):
+        if not user or not pwd_context.verify(request.form.get("password"), user["hash"]):
             return apology("invalid username and/or password")
 
         # remember which user has logged in
-        session["user_id"] = rows[0]["id"]
+        session["user_id"] = user["id"]
 
         # redirect user to home page
         return redirect(url_for("index"))
@@ -197,7 +251,7 @@ def logout():
 
     # forget any user_id
     session.clear()
-
+    
     # redirect user to login form
     return redirect(url_for("login"))
 
@@ -244,32 +298,31 @@ def register():
             return apology("passwords must match")
         
         # query database for username
-        rows = db.execute("SELECT * FROM users WHERE username = :username", username=request.form.get("username"))
+        c.execute("SELECT * FROM users WHERE username = ?", (request.form.get("username"),))
+        user = c.fetchone()
         
         # ensure username does not already exist
-        if len(rows) > 0:
+        if user:
             return apology("that username already exists!")
             
         # encrypt password into hash
         hashed = pwd_context.hash(request.form.get("password"))
         
-        # insert the user info into database
-        db.execute("INSERT INTO users (username, hash) VALUES(:username, :hash)",
-            username=request.form.get("username"), hash=hashed)
+        # insert the user info into database, id is autoincremented by sqlite
+        c.execute("INSERT INTO users (username, hash) VALUES(?,?)", (request.form.get("username"), hashed))
         
         # re-query database for id
-        rows = db.execute("SELECT * FROM users WHERE username = :username", username=request.form.get("username"))
+        c.execute("SELECT * FROM users WHERE username = ?", (request.form.get("username"),))
+        row = c.fetchone()
         
         # remember which user has logged in
-        session["user_id"] = rows[0]["id"]
-        
-        localtime = time.asctime( time.localtime(time.time()) )
+        session["user_id"] = row["id"]
         
         #update transaction history table        
-        db.execute("INSERT INTO transactions (id, buy_sell, price, time) VALUES(:id, :buy_sell, :price, :time)",
-            id = session["user_id"], buy_sell = "Account Opening Bonus", price = 10000, time = localtime)
+        c.execute('INSERT INTO transactions (id, buy_sell, price, time) VALUES(?,?,?,?)', (session['user_id'], "Account Opening Bonus", 10000, currentTime()))
         
         # redirect user to home page
+        conn.commit()
         return redirect(url_for("index"))
     
     # else if user reached route via GET (as by clicking a link or via redirect)
@@ -292,8 +345,10 @@ def sell():
             
         #check if user owns the stock
         id = session["user_id"]
-        rowsPF = db.execute("SELECT * FROM portfolio WHERE id = :id AND stock = :stock", id = id, stock=stock["symbol"])
-        if len(rowsPF) == 0:
+        c.execute("SELECT * FROM portfolio WHERE id = ? AND stock = ?", (id, stock["symbol"],))
+        owned = c.fetchone()
+        
+        if not owned:
             return apology("you do not own this stock")
             
             
@@ -301,31 +356,44 @@ def sell():
         sale = stock["price"] * shares
 
         #retrieve user's cash balance
-        rowsUser = db.execute("SELECT * FROM users WHERE id = :id", id = id )
-        cash = rowsUser[0]["cash"]
+        c.execute("SELECT * FROM users WHERE id = ?", (id,))
+        user = c.fetchone()
+        cash = user["cash"]
         
         #check the user has greater than or equal number of shares available to sell
-        if rowsPF[0]["shares"] < shares:
+        if owned["shares"] < shares:
             return apology("you are trying to sell more shares than you own")
         
             
-        localtime = time.asctime( time.localtime(time.time()) )
-        
         #update transaction history table        
-        db.execute("INSERT INTO transactions (id, stock, buy_sell, shares, price, time) VALUES(:id, :stock, :buy_sell, :shares, :price, :time)",
-            id = id, stock = stock["symbol"], buy_sell = "Sell", shares = shares, price = stock["price"], time = localtime)
+        c.execute("INSERT INTO transactions VALUES(?,?,?,?,?,?)", (id, stock['symbol'], 'Sell', shares, stock['price'], currentTime()))
         
         # update the portfolio
-        db.execute("UPDATE portfolio SET shares = :shares WHERE id = :id AND stock = :stock", 
-            shares = rowsPF[0]["shares"] - shares, id = id, stock = stock["symbol"])
+        c.execute('UPDATE portfolio SET shares = ? WHERE id = ? AND stock = ?', (owned["shares"] - shares, id, stock["symbol"]))
         
         #update the cash position
-        db.execute("UPDATE users SET cash = :cash WHERE id = :id", cash = cash + sale, id = id)
+        #db.execute("UPDATE users SET cash = :cash WHERE id = :id", cash = cash + sale, id = id)
+        c.execute('UPDATE users SET cash = ? WHERE id = ?', (cash + sale, id))
         
         # render the successful result
+        conn.commit()
         return render_template("sold.html", name=stock["name"], symbol=stock["symbol"], price=stock["price"],
-            shares=shares, total=usd(stock["price"]*shares), buy_sell="Sell", time = localtime)
+            shares=shares, total=usd(stock["price"]*shares), buy_sell="Sell", time = currentTime())
         
     # if GET method    
     else: 
         return render_template("sell.html")
+        
+@app.route("/userChange", methods=['GET', 'POST'])
+@login_required
+def username():
+    
+    return render_template('userChange.html')
+    
+@app.route("/passChange", methods=['GET', 'POST'])
+@login_required
+def password():
+    
+    return render_template('passChange.html')
+    
+    
