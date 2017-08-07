@@ -42,7 +42,14 @@
                                 <li><a href="{{ url_for('buy') }}">Buy</a></li>
                                 <li><a href="{{ url_for('sell') }}">Sell</a></li>
                                 <li><a href="{{ url_for('history') }}">History</a></li>
-                                <li><a href="{{ url_for('account') }}">Account</a></li>
+                                <li class='dropdown'><a class="dropdown-toggle" href="{{ url_for('account') }}">Account<span class="caret"></span></a>
+                                    <ul class="dropdown-menu">
+                                        <li><a href="{{ url_for('deposit') }}">Deposit</a></li>
+                                        <li><a href="{{ url_for('withdraw') }}">Withdraw</a></li>
+                                        <li><a href="{{ url_for('userChange') }}">Change Username</a></li>
+                                        <li><a href="{{ url_for('passChange') }}">Change Password</a></li>
+                                    </ul>
+                                </li>
                             </ul>
                             <ul class="nav navbar-nav navbar-right">
                                 <li><a href="{{ url_for('logout') }}">Log Out</a></li>

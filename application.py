@@ -33,6 +33,10 @@ conn = sqlite3.connect('finance.db')
 conn.row_factory = sqlite3.Row
 c = conn.cursor()
 
+
+
+
+
 @app.route("/")
 @login_required
 def index():
@@ -66,6 +70,12 @@ def index():
     
     return render_template("index.html", user=user["username"], stocks=stocks, total=usd(total), cash=usd(user["cash"]), equity=usd(equity))
 
+
+
+
+
+
+
 @app.route("/account")
 @login_required
 def account():
@@ -74,6 +84,12 @@ def account():
     c.execute('SELECT * FROM users WHERE id = ?', (session["user_id"],))
     user = c.fetchone()
     return render_template("account.html", user=user['username'], balance=usd(user['cash']))
+
+
+
+
+
+
 
 @app.route("/deposit", methods=["GET", "POST"])
 @login_required
@@ -89,11 +105,13 @@ def deposit():
     #if POST method
     if request.method == "POST":
         
-        #make a helper function to check for number is entered because a user can turn javascript off on the browser
-        #so need to double check for correct input on the server side
-
+        # check for correct integer input
+        userInput =  request.form.get("deposit")
+        if not userInput.isdigit():
+            return apology("Please enter only positive numbers")
+        
         #update the user's cash balance
-        deposit =  int(request.form.get("deposit"))
+        deposit =  int(userInput)
         c.execute('UPDATE users SET cash = ? WHERE id = ?', (user["cash"] + deposit, id))
 
         #update transaction history table        
@@ -107,6 +125,13 @@ def deposit():
     # if GET method
     else:
         return render_template("deposit.html", balance=usd(user["cash"]))
+
+
+
+
+
+
+
 
 @app.route("/withdraw", methods=["GET", "POST"])
 @login_required
@@ -122,11 +147,13 @@ def withdraw():
     #if POST method
     if request.method == "POST":
         
-        #make a helper function to check for number is entered because a user can turn javascript off on the browser
-        #so need to double check for correct input on the server side
+        # check for correct integer input
+        userInput =  request.form.get("deposit")
+        if not userInput.isdigit():
+            return apology("Please enter only positive numbers")
 
         #update the user's cash balance
-        withdraw =  int(request.form.get("withdraw"))
+        withdraw =  int(userInput)
         c.execute('UPDATE users SET cash = ? WHERE id = ?', (user["cash"] - withdraw, id))
 
         #update transaction history table        
@@ -141,6 +168,96 @@ def withdraw():
     else:
         return render_template("withdraw.html", balance=usd(user["cash"]))
 
+
+
+
+
+
+
+@app.route("/userChange", methods=['GET', 'POST'])
+@login_required
+def userChange():
+    
+    if request.method == 'POST':
+        
+        # ensure old username was submitted
+        if not request.form.get("oldName"):
+            return apology("must provide old username")
+            
+        # ensure new username was submitted
+        if not request.form.get("newName"):
+            return apology("must provide a new username")
+
+        # ensure old username matches db
+        c.execute("SELECT * FROM users WHERE id = ?", (session['user_id'],))
+        user = c.fetchone()
+        if user['username'] != request.form.get('oldName'):
+            return apology('old username does not match')
+
+        # ensure password is correct
+        if not pwd_context.verify(request.form.get("password"), user["hash"]):
+            return apology("invalid username and/or password")
+        
+        #update db
+        c.execute('UPDATE users SET username = ? WHERE id = ?', (request.form.get('newName'), session['user_id']))
+        conn.commit()
+        
+        # redirect user to home page
+        return redirect(url_for("index"))
+        
+    else:
+        return render_template('userChange.html')
+
+
+
+
+
+
+
+@app.route("/passChange", methods=['GET', 'POST'])
+@login_required
+def passChange():
+    
+    if request.method == 'POST':
+        
+        # ensure old password was submitted
+        if not request.form.get("oldPass"):
+            return apology("must provide old Password")
+            
+        # ensure new password was submitted
+        if not request.form.get("newPass"):
+            return apology("must provide a new Password")
+            
+        # confirm new password matches twice
+        if request.form.get("newPass") != request.form.get("confirmPass"):
+            return apology("new password must match")
+
+        # ensure old password matches db
+        c.execute("SELECT * FROM users WHERE id = ?", (session['user_id'],))
+        user = c.fetchone()
+        if not pwd_context.verify(request.form.get("oldPass"), user["hash"]):
+            return apology('old password does not match database')
+
+        # encrypt password into hash
+        hashed = pwd_context.hash(request.form.get("newPass"))
+        
+        #update db
+        c.execute('UPDATE users SET hash = ? WHERE id = ?', (hashed, session['user_id']))
+        conn.commit()
+        
+        # redirect user to home page
+        return redirect(url_for("index"))
+        
+    else:
+        return render_template('passChange.html')
+
+
+
+
+
+
+
+
 @app.route("/buy", methods=["GET", "POST"])
 @login_required
 def buy():
@@ -154,9 +271,14 @@ def buy():
         if stock == None:
             return apology("symbol is not valid or could not retrieve data")
         
-        shares = int(request.form.get("shares"))
+        # check for correct integer input for number of shares
+        userInput =  request.form.get("shares")
+        if not userInput.isdigit():
+            return apology("Please enter only positive numbers")
+        
+        shares = int(userInput)
         purchase = stock["price"] * shares
-
+        
         #check if the user has sufficient funds
         id = session["user_id"]
         c.execute("SELECT * FROM users WHERE id = ?", (id,))
@@ -198,6 +320,11 @@ def buy():
         return render_template("buy.html")
 
 
+
+
+
+
+
 @app.route("/history")
 @login_required
 def history():
@@ -207,6 +334,15 @@ def history():
     c.execute("SELECT * FROM transactions WHERE id = ?", (session["user_id"],))
     rowsT = c.fetchall()
     return render_template("history.html", stocks=rowsT)
+
+
+
+
+
+
+
+
+
 
 
 @app.route("/login", methods=["GET", "POST"])
@@ -245,6 +381,15 @@ def login():
     else:
         return render_template("login.html")
 
+
+
+
+
+
+
+
+
+
 @app.route("/logout")
 def logout():
     """Log user out."""
@@ -254,6 +399,16 @@ def logout():
     
     # redirect user to login form
     return redirect(url_for("login"))
+
+
+
+
+
+
+
+
+
+
 
 @app.route("/quote", methods=["GET", "POST"])
 @login_required
@@ -274,6 +429,15 @@ def quote():
     # if GET method    
     else:
         return render_template("quote.html")
+
+
+
+
+
+
+
+
+
 
 @app.route("/register", methods=["GET", "POST"])
 def register():
@@ -330,6 +494,14 @@ def register():
         return render_template("register.html")
         
 
+
+
+
+
+
+
+
+
 @app.route("/sell", methods=["GET", "POST"])
 @login_required
 def sell():
@@ -351,8 +523,12 @@ def sell():
         if not owned:
             return apology("you do not own this stock")
             
+        # check for correct integer input for number of shares
+        userInput =  request.form.get("shares")
+        if not userInput.isdigit():
+            return apology("Please enter only positive numbers")
             
-        shares = int(request.form.get("shares"))
+        shares = int(userInput)
         sale = stock["price"] * shares
 
         #retrieve user's cash balance
@@ -383,17 +559,12 @@ def sell():
     # if GET method    
     else: 
         return render_template("sell.html")
-        
-@app.route("/userChange", methods=['GET', 'POST'])
-@login_required
-def username():
-    
-    return render_template('userChange.html')
-    
-@app.route("/passChange", methods=['GET', 'POST'])
-@login_required
-def password():
-    
-    return render_template('passChange.html')
+
+
+
+
+
+
+
     
     
