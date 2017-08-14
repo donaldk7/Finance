@@ -1,4 +1,5 @@
-Flask
-Flask-Session
-passlib
-SQLAlchemy
+Flask==0.12.2
+Jinja2==2.9.6
+Flask-Session==0.3.1
+passlib==1.7.1
+
