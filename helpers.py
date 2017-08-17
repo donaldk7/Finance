@@ -27,9 +27,12 @@ def login_required(f):
     """
     @wraps(f)
     def decorated_function(*args, **kwargs):
+        
         if session.get("user_id") is None:
             return redirect(url_for("login", next=request.url))
+            
         return f(*args, **kwargs)
+        
     return decorated_function
 
 def lookup(symbol):
@@ -72,4 +75,4 @@ def usd(value):
 
 def currentTime():
     return time.asctime( time.localtime(time.time()) )
-    # thanks to https://www.tutorialspoint.com/python3/python_date_time.htm   for the time code snippet
+    # https://www.tutorialspoint.com/python3/python_date_time.htm
